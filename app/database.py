@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, create_engine, Session
-from app.models import User, loan_requests
+from app.models import User, LoanRequest
 
 sqlite_url = "sqlite:///database.db"
 engine = create_engine(sqlite_url, echo=True)
