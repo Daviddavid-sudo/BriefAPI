@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, create_engine, Session
-from models import User, loan_requests
+from app.models import User, loan_requests
 
 sqlite_url = "sqlite:///database.db"
 engine = create_engine(sqlite_url, echo=True)
@@ -16,9 +16,9 @@ def main():
 if __name__ == "__main__":  
     main()
 
-# def get_session():
-#     with Session(engine) as session:
-#         yield session
+def get_session():
+    with Session(engine) as session:
+        yield session
 
-# create_db_and_tables()
-# get_session()
+create_db_and_tables()
+get_session()
