@@ -1,3 +1,9 @@
 .venv
 *.csv
 *.db
+*.sqlite
+*.md
+__pycache__
+__pycache__/
+*.bd.sqlite
+migration/

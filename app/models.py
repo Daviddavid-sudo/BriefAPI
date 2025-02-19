@@ -1,11 +1,11 @@
 from sqlmodel import SQLModel, Field, create_engine, Session
 from sqlalchemy.ext.declarative import declarative_base
 from fastapi import Form
+
 class User(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     name: str
     email: str
-
 
 class LoanRequest(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
