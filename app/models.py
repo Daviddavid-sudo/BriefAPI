@@ -12,17 +12,15 @@ class User(SQLModel, table=True):
 
 class loan_requests(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
-    state: str
-    bank: str
-    term: int
-    naics: int
-    newexist: bool
-    year: int
-    createjob: int
-    franchisecode: int
-    revline: int
-    lowdoc: int
-    grappv: int
-    sbaappv: int
-    urbanrural: int
-    accepted: bool 
+    State: str
+    NAICS: int
+    UrbanRural: int
+    LowDoc: str 
+    bank_loan_float: float
+    SBA_loan_float: float
+    FranchiseCode: str
+    Bank: str
+    BankState: str
+    RevLineCr: str 
+    Term: int
+    crisis: int

@@ -10,7 +10,7 @@ router = APIRouter()
 
 ### Routes for loan requests ###
 # Load the pre-trained model for loan eligibility prediction
-model = joblib.load("app/model/xgb_model.pkl")  # Ensure the model file is present in the correct path
+model = joblib.load("app/model/model_lgbm_cloud.pkl")  # Ensure the model file is present in the correct path
 
 
 # GET /loans/predict
