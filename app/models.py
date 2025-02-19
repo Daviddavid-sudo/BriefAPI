@@ -22,3 +22,4 @@ class loan_requests(SQLModel, table=True):
     grappv: int
     sbaappv: int
     urbanrural: int
+    accepted: bool 
