@@ -10,9 +10,9 @@ router = APIRouter()
 
 ### Routes for loan requests ###
 # Load the pre-trained model for loan eligibility prediction
-# model = joblib.load("model.pkl")  # Ensure the model file is present in the correct path
+model = joblib.load("app/model/xgb_model.pkl")  # Ensure the model file is present in the correct path
 
-'''
+
 # GET /loans/predict
 @router.get("/loans/predict")
 def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_session)):
@@ -37,7 +37,7 @@ def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_sessio
         except Exception as e:
             # If an exception occurs during prediction, raise a 500 HTTP exception
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-'''
+
 
 # Submission of a loan request
 # POST/loans/request
@@ -71,3 +71,4 @@ def get_loan_history(user_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="No loan requests found")
     # Return the list of loan requests
     return loans
+

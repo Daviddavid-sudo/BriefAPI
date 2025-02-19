@@ -19,6 +19,3 @@ if __name__ == "__main__":
 def get_session():
     with Session(engine) as session:
         yield session
-
-create_db_and_tables()
-get_session()
