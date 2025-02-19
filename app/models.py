@@ -7,7 +7,7 @@ class User(SQLModel, table=True):
     email: str
     password: str
     role: str
-    activation: str
+    activation: bool = Field(default=False)
 
 
 class loan_requests(SQLModel, table=True):

@@ -9,13 +9,6 @@ from app.database import get_session
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# def get_db():
-#     db = Session()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -28,12 +21,11 @@ def verify_password(plain_password, hashed_password):
 @router.post("/auth/login")
 async def authenticate_user(email: str, password: str, db: Session = Depends(get_session)):
     statement = select(User).where(User.email == email)
-    user = db.execute(statement).first()
+    result = db.execute(statement).first()
+    user = result[0] if result else None
     print(email,password)
-    if not user or not verify_password(password, user.hashed_password):
-        print("invalid")
+    if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    print("hi")
     return user
 
 
@@ -41,5 +33,4 @@ async def authenticate_user(email: str, password: str, db: Session = Depends(get
 def logout(response : Response):
   response = RedirectResponse('/auth/login', status_code= 302)
   response.delete_cookie(key ='access_token')
-  print("hello")
   return response
