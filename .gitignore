@@ -1,3 +1,10 @@
 .venv
 *.csv
 *.db
+db/
+db.sqlite3
+db.sqlite3
+migration/
+model/
+__pycache__/
+alembic.ini
