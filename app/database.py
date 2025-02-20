@@ -19,7 +19,4 @@ def get_session():
 
 if __name__ == "__main__":  
     main()
-
-def get_session():
-    with Session(engine) as session:
-        yield session
+    get_session()

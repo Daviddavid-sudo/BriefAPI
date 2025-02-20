@@ -14,31 +14,63 @@ model = joblib.load("app/model/model_lgbm_cloud.pkl")  # Ensure the model file i
 
 
 # GET /loans/predict
+# @router.get("/loans/predict")
+# def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_session)):
+#     # Retrieve the loan request from the database using the provided loan_id
+#     loan_request = session.get(loan_requests, loan_id)
+#     # If the loan request does not exist, raise a 404 HTTP exception
+#     if not loan_request:
+#         raise HTTPException(status_code=404, detail="Loan request not found")
+#     else:
+#         try:
+#             # Convert loan request data to a dictionary
+#             loan_data = loan_request.model_dump()
+#             # Convert dictionary values to a numpy array
+#             data_array = np.array([list(loan_data.values())])
+#             # Make a prediction using the loaded model
+#             prediction = model.predict(data_array)
+#             print("hi")
+#             print(prediction[0])
+#             print("hi")
+#             # Return eligibility based on the prediction
+#             if prediction[0] == 1:
+#                 return {"eligibility": "Eligible for loan"}
+#             else:
+#                 return {"eligibility": "Not eligible for loan"}
+#         except Exception as e:
+#             # If an exception occurs during prediction, raise a 500 HTTP exception
+#             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
 @router.get("/loans/predict")
-def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_session)):
+def predict_loan_eligibility2(loan_id: int, session: Session = Depends(get_session)):
     # Retrieve the loan request from the database using the provided loan_id
-    loan_request = session.get(loan_requests, loan_id)
+    loan_request = session.get(LoanRequest, loan_id)
     # If the loan request does not exist, raise a 404 HTTP exception
     if not loan_request:
         raise HTTPException(status_code=404, detail="Loan request not found")
-    else:
-        try:
-            # Convert loan request data to a dictionary
-            loan_data = loan_request.model_dump()
-            # Convert dictionary values to a numpy array
-            data_array = np.array([list(loan_data.values())])
-            # Make a prediction using the loaded model
-            prediction = model.predict(data_array)
-            # Return eligibility based on the prediction
-            if prediction[0] == 1:
-                return {"eligibility": "Eligible for loan"}
-            else:
-                return {"eligibility": "Not eligible for loan"}
-        except Exception as e:
-            # If an exception occurs during prediction, raise a 500 HTTP exception
-            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-
+    
+    try:
+        # Convert loan request data to a dictionary
+        loan_data = loan_request.model_dump()
+        
+        # Define the expected feature order
+        feature_order = ["State", "NAICS", "UrbanRural", "LowDoc", "bank_loan_float", "SBA_loan_float", "FranchiseCode", "Bank", "BankState", "RevLineCr", "Term", "crisis"]
+        
+        # Ensure the data is formatted correctly
+        data_array = np.array([[
+            loan_data[feature] if feature in ["State", "LowDoc", "FranchiseCode", "Bank", "BankState", "RevLineCr"] else float(loan_data[feature])
+            for feature in feature_order
+        ]])
+        
+        # Make a prediction using the loaded model
+        prediction = model.predict(data_array)
+        
+        # Return eligibility based on the prediction
+        return {"eligibility": "Eligible for loan" if prediction[0] == 1 else "Not eligible for loan"}
+    except Exception as e:
+        # If an exception occurs during prediction, raise a 500 HTTP exception
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+    
 # Submission of a loan request
 # POST/loans/request
 @router.post("/loans/request", response_model=loan_requests)
