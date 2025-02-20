@@ -8,3 +8,5 @@ migration/
 model/
 __pycache__/
 alembic.ini
+alembic/
+
