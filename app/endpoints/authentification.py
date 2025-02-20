@@ -42,8 +42,13 @@ async def authenticate_user(email: str, password: str, db: Session = Depends(get
     # return user
 
 
+# @router.post("/auth/logout")
+# def logout(response : Response):
+#   response = RedirectResponse('/auth/login', status_code= 302)
+#   response.delete_cookie(key ='access_token')
+#   return response
+
 @router.post("/auth/logout")
-def logout(response : Response):
-  response = RedirectResponse('/auth/login', status_code= 302)
-  response.delete_cookie(key ='access_token')
-  return response
+def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"message": "Successfully logged out"}
