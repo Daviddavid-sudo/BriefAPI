@@ -5,7 +5,7 @@ from app.schemas.users import User
 from app.db.sessions import get_session
 import joblib
 import numpy as np
-import lightgbm as lgb
+import lightgbm
 import pandas as pd
 
 router = APIRouter()
