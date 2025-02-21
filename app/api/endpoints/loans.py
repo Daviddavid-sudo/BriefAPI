@@ -27,51 +27,60 @@ async def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_
     Returns:
         dict: Prediction result indicating whether the loan is eligible or not.
     """
-    try:
-        # 1Retrieve the loan request from the database
-        loan_request = session.get(LoanRequest, loan_id)
+    #try:
+        # Retrieve the loan request from the database
+    loan_request = session.get(LoanRequest, loan_id)
 
+    if not loan_request:
+        raise HTTPException(status_code=404, detail="Loan request not found")
 
-        # Handle the case where the loan ID does not exist
-        if not loan_request:
-            raise HTTPException(status_code=404, detail="Loan request not found")
+    # Map LoanRequest attributes to model features
+    loan_data = {
+        "State": loan_request.state,
+        "NAICS": loan_request.naics,
+        "UrbanRural": loan_request.urbanrural,
+        "LowDoc": loan_request.lowdoc,
+        "FranchiseCode": loan_request.franchisecode,
+        "Bank": loan_request.bank,
+        "BankState": loan_request.bankstate,
+        "RevLineCr": loan_request.revline,
+        "Term": loan_request.term,
+        "bank_loan_float": float(loan_request.amount),
+        "SBA_loan_float": float(loan_request.sba_guaranteed),
+        "crisis": loan_request.crisis,
+        "ApprovalFY": loan_request.year
+    }
 
-        # Map LoanRequest attributes to model features
-        loan_data = {
-            "State": loan_request.state,
-            "NAICS": loan_request.naics,
-            "UrbanRural": loan_request.urbanrural,
-            "LowDoc": loan_request.lowdoc,
-            "FranchiseCode": loan_request.franchisecode,
-            "Bank": loan_request.bank,
-            "BankState": loan_request.bankstate,
-            "RevLineCr": loan_request.revline,
-            "Term": loan_request.term,
-            "bank_loan_float": float(loan_request.amount),  # Convert GrAppv to float
-            "SBA_loan_float": float(loan_request.sba_guaranteed),  # Convert SBA_Appv to float
-            "crisis": loan_request.crisis,
-        }
+    # Ensure correct feature transformations
+    df_data = pd.DataFrame([loan_data])
+    df_data['NAICS'] = df_data['NAICS'].apply(lambda x: str(x)[:2])
+    
+    # Define expected feature order
+    feature_order = ['State', 'NAICS', 'UrbanRural', 'LowDoc', 'bank_loan_float', 'SBA_loan_float', 'FranchiseCode', 'BankState', 'Bank', 'RevLineCr', 'Term', 'crisis']
+    
+    
+    categorical_features = ['State', 'NAICS', 'FranchiseCode', 'BankState', 'RevLineCr', 'Bank']
+    ordinal_features = ['LowDoc', 'UrbanRural', 'crisis']
+    numeric_features = ['bank_loan_float', 'SBA_loan_float', 'Term']
+    
+    
+    df_data[categorical_features] = df_data[categorical_features].astype('category')
+    df_data[ordinal_features] = df_data[ordinal_features].astype('int')
+    df_data[numeric_features] = df_data[numeric_features].astype('float')
+    
+    print(df_data)
+    print(df_data.dtypes)
+    
+    df_data = df_data[feature_order]
 
-        # Define the expected feature order
-        feature_order = [
-            "State", "NAICS", "UrbanRural", "LowDoc", "bank_loan_float",
-            "SBA_loan_float", "FranchiseCode", "Bank", "BankState",
-            "RevLineCr", "Term", "crisis"
-        ]
+    
+    # Make a prediction using the trained LGBM model
+    prediction = model.predict(df_data)
+    
+    return {"eligibility": "Eligible for loan" if prediction[0] == 1 else "Not eligible for loan"}
 
-        # Ensure the data is formatted correctly for prediction
-        df_data = pd.DataFrame([loan_data])
-        df_data = df_data[feature_order]
-
-        # Make a prediction using the trained LGBM model
-        prediction = model.predict(df_data)
-
-        # Return the loan eligibility result
-        return {"eligibility": "Eligible for loan" if prediction[0] == 1 else "Not eligible for loan"}
-
-    except Exception as e:
-        # 8️⃣ Handle any errors during prediction
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+    #except Exception as e:
+    #    raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
         
 

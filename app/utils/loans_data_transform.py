@@ -14,6 +14,7 @@ def convert_loan_request(loan: LoanRequest) -> dict:
     feature_mapping = {
         "state": "State",
         "naics": "NAICS",
+        "year": "ApprovalFY",
         "urbanrural": "UrbanRural",
         "lowdoc": "LowDoc",
         "franchisecode": "FranchiseCode",
