@@ -1,19 +1,77 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response
+# from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response
+# from app.models import User
+# from passlib.context import CryptContext
+# from sqlalchemy.orm import Session
+# from fastapi.responses import RedirectResponse
+# from sqlmodel import select
+# from app.database import get_session
+# from datetime import datetime, timedelta
+
+
+# router = APIRouter()
+# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# # JWT Configuration
+# SECRET_KEY = "your_secret_key"
+# ALGORITHM = "HS256"
+# ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# def get_password_hash(password):
+#     return pwd_context.hash(password)
+
+
+# def verify_password(plain_password, hashed_password):
+#     return pwd_context.verify(plain_password, hashed_password)
+
+# def create_access_token(data: dict, expires_delta: timedelta):
+#     to_encode = data.copy()
+#     expire = datetime.utcnow() + expires_delta
+#     to_encode.update({"exp": expire})
+#     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# @router.post("/auth/login")
+# async def authenticate_user(email: str, password: str, db: Session = Depends(get_session)):
+#     statement = select(User).where(User.email == email).where(User.role == "admin")
+#     result = db.execute(statement).first()
+#     user = result[0] if result else None
+#     if not user or not verify_password(password, user.password):
+#         raise HTTPException(status_code=400, detail="Invalid credentials")
+#     access_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=30))
+#     return {"access_token": access_token, "token_type": "bearer"}
+
+#     # return user
+
+
+# # @router.post("/auth/logout")
+# # def logout(response : Response):
+# #   response = RedirectResponse('/auth/login', status_code= 302)
+# #   response.delete_cookie(key ='access_token')
+# #   return response
+
+# @router.post("/auth/logout")
+# def logout(response: Response):
+#     response.delete_cookie(key="access_token")
+#     return {"message": "Successfully logged out"}
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, status
 from app.models import User
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
 from app.database import get_session
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
+from pydantic import BaseModel
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# JWT Configuration
+
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -22,11 +80,41 @@ def get_password_hash(password):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.utcnow() + expires_delta  # Use `utcnow()` for consistency
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)):
+    print(f"Received token: {token}")  # Debugging step
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        print(f"Decoded email: {email}")  # Debugging step
+
+        # Fetch user from the database
+        statement = select(User).where(User.email == email)
+        result = db.execute(statement).first()
+        user = result[0] if result else None
+
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return user
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+    confirm_password: str
 
 
 @router.post("/auth/login")
@@ -36,17 +124,33 @@ async def authenticate_user(email: str, password: str, db: Session = Depends(get
     user = result[0] if result else None
     if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
+    
     access_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=30))
     return {"access_token": access_token, "token_type": "bearer"}
 
-    # return user
 
+@router.post("/auth/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    """Allows logged-in users to reset their passwords without needing to enter a token."""
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirm password do not match."
+        )
 
-# @router.post("/auth/logout")
-# def logout(response : Response):
-#   response = RedirectResponse('/auth/login', status_code= 302)
-#   response.delete_cookie(key ='access_token')
-#   return response
+    # Hash new password and update the database
+    hashed_password = get_password_hash(request.new_password)  # Use the hash function
+    current_user.password = hashed_password
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)  # Refresh to ensure the session reflects the change
+
+    return {"success": True, "message": "Password reset successful!"}
+
 
 @router.post("/auth/logout")
 def logout(response: Response):
