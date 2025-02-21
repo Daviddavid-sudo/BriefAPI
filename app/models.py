@@ -5,6 +5,7 @@ class User(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     name: str
     email: str
+    password : str
 
 
 class loan_requests(SQLModel, table=True):
