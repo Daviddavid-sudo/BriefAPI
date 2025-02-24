@@ -36,15 +36,12 @@ def create_access_token(data: dict, expires_delta: timedelta):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)):
-    print(f"Received token: {token}")  # Debugging step
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if not email:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-        print(f"Decoded email: {email}")  # Debugging step
 
         # Fetch user from the database
         statement = select(User).where(User.email == email)
@@ -82,21 +79,22 @@ async def reset_password(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session)
 ):
-    """Allows logged-in users to reset their passwords without needing to enter a token."""
+
     if request.new_password != request.confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password and confirm password do not match."
         )
 
-    # Hash new password and update the database
-    hashed_password = get_password_hash(request.new_password)  # Use the hash function
+    hashed_password = get_password_hash(request.new_password)
     current_user.password = hashed_password
+    current_user.activation = True 
+
     db.add(current_user)
     db.commit()
-    db.refresh(current_user)  # Refresh to ensure the session reflects the change
+    db.refresh(current_user)
 
-    return {"success": True, "message": "Password reset successful!"}
+    return {"success": True, "message": "Password reset successful, account activated!"}
 
 
 @router.post("/auth/logout")

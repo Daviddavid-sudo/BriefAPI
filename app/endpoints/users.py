@@ -1,32 +1,69 @@
-from fastapi import FastAPI, Depends, HTTPException, Header, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, Header, APIRouter, status
 from pydantic import BaseModel
+from passlib.context import CryptContext
 from sqlmodel import Session, select, SQLModel
-from app.database import engine  
+from app.database import engine, get_session
 from app.models import User
-import bcrypt 
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-import datetime
-router = APIRouter()
+from datetime import timedelta, datetime
 
+
+router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="admin/users")
 
 
-@router.post("/users")
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(data: dict, expires_delta: timedelta):
+    to_encode = data.copy()
+    expire = datetime.now() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        statement = select(User).where(User.email == email)
+        result = db.execute(statement).first()
+        user = result[0] if result else None
+
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return user
+    except JWTError as e:
+        print("JWT Error:", str(e))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+
+@router.post("/admin/users")
 def create_user(user: User):
     with Session(engine) as session:
         existing_user = session.exec(select(User).where(User.email == user.email)).first()
         if existing_user:
             return {"Un utilisateur avec cet email existe déjà"}
         
-        hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+        hashed_password = jwt.encode(user.password)
 
-        new_user = User(email=user.email, password=hashed_password.decode('utf-8'), name=user.name, role=user.role, activation=False)
+        new_user = User(email=user.email, password=hashed_password, name=user.name, role=user.role, activation=False)
         session.add(new_user)
         session.commit()
         session.refresh(new_user)
@@ -34,28 +71,13 @@ def create_user(user: User):
         return "Inscription validée"
 
 
-
-
-#verification admin ou non
-def verify_admin(token: str = Header(None)):
-    if not token:
-        raise HTTPException(status_code=401, detail="Token manquant")
-    
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    if payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Accès interdit")
-    # except jwt.ExpiredSignatureError:
-    #     raise HTTPException(status_code=401, detail="Token expiré")
-    # except jwt.InvalidTokenError:
-    #     raise HTTPException(status_code=401, detail="Token invalide")
-    
-    return payload  
-
-#liste user
-@router.get("/users")
-def get_users():
-    if verify_admin(Depends(oauth2_scheme)):
+@router.get("/admin/users")
+def get_users(current_user: User = Depends(get_current_user)):
+    print('hi')
+    print(current_user.role)
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins only")
+    else:
         with Session(engine) as session:
             users = session.exec(select(User)).all()
-
             return [{"Nom de l'utilisateur" : user.name} for user in users]
