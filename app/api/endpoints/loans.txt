@@ -1,0 +1,27 @@
+async def predict(data: LoanRequest):
+    # Transformer les données en DataFrame
+    data = {
+    "State": [data.State],
+    "NAICS": [data.NAICS],
+    "UrbanRural": [data.UrbanRural],
+    "LowDoc": [data.LowDoc],
+    "bank_loan_float": [data.bank_loan_float],
+    "SBA_loan_float": [data.SBA_loan_float],
+    "FranchiseCode": [data.FranchiseCode],
+    "BankState": [data.BankState],
+    "Bank": [data.Bank],
+    "RevLineCr": [data.RevLineCr],
+    "Term": [data.Term],
+    "crisis": [data.crisis]
+}
+
+    # Créer le DataFrame
+    df = pd.DataFrame(data)
+    # Vérifier que le modèle est chargé
+    if model is None:
+        return {"error": "Modèle non chargé"}
+
+    # Faire la prédiction
+    prediction = model.predict(df)
+
+    return {"prediction": prediction[0]}

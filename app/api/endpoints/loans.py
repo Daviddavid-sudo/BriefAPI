@@ -2,112 +2,112 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from app.schemas.loans import LoanRequest
 from app.schemas.users import User
+#from auth import get_current_user
+
 from app.db.sessions import get_session
 import joblib
 import numpy as np
 import lightgbm
 import pandas as pd
+import joblib
 
 router = APIRouter()
 
 ### Routes for loan requests ###
 # Load the pre-trained model for loan eligibility prediction
-model = joblib.load("app/models/lgbm_model.pkl")  # Ensure the model file is present in the correct path
+model = joblib.load("app/models/final_model_pipeline.pkl")
 
-# GET /loans/predict
-@router.get("/loans/predict")
-async def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_session)):
+
+# GET /loans/request
+@router.post("/loans/request", response_model=LoanRequest)
+async def request_loan_and_predict(loan_request: LoanRequest):
     """
-    Predicts loan eligibility based on a loan request ID.
+    Submits a loan request and predicts the eligibility based on the request.
 
     Args:
-        loan_id (int): The ID of the loan request.
+        user_id (int): The ID of the user submitting the loan request.
+        loan_request (LoanRequest): The loan request data.
         session (Session): SQLAlchemy database session.
 
     Returns:
-        dict: Prediction result indicating whether the loan is eligible or not.
+        dict: A message with the eligibility status and the updated loan request.
     """
+    # Retrieve the user from the database using the provided user_id
+    #user = session.get(User, user_id)
+    #if not user:
+    #    raise HTTPException(status_code=404, detail="User not found")
+
+    # Create a new loan request instance
+    new_loan_request = LoanRequest(**loan_request.model_dump(exclude_unset=True))
+
     #try:
-        # Retrieve the loan request from the database
-    loan_request = session.get(LoanRequest, loan_id)
+        # Add the new loan request to the session
+    #session.add(new_loan_request)
+        # Commit the transaction to save the new loan request in the database
+    #session.commit()
+        # Refresh the session to get the updated loan request data
+    #session.refresh(new_loan_request)
+    #except Exception as e:
+        # If an exception occurs during the database transaction, rollback the session and raise an error
+    #session.rollback()
+        #raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    if not loan_request:
-        raise HTTPException(status_code=404, detail="Loan request not found")
-
-    # Map LoanRequest attributes to model features
+    # Map LoanRequest attributes to model features for prediction
     loan_data = {
-        "State": loan_request.state,
-        "NAICS": loan_request.naics,
-        "UrbanRural": loan_request.urbanrural,
-        "LowDoc": loan_request.lowdoc,
-        "FranchiseCode": loan_request.franchisecode,
-        "Bank": loan_request.bank,
-        "BankState": loan_request.bankstate,
-        "RevLineCr": loan_request.revline,
-        "Term": loan_request.term,
-        "bank_loan_float": float(loan_request.amount),
-        "SBA_loan_float": float(loan_request.sba_guaranteed),
-        "crisis": loan_request.crisis,
-        "ApprovalFY": loan_request.year
+        "GrAppv": [new_loan_request.Amount],
+        "Term": [new_loan_request.Term],
+        "LowDoc": [new_loan_request.LowDoc],
+        "RevLineCr": [new_loan_request.RevLineCr],
+        "NoEmp": [new_loan_request.NoEmp],
+        "NAICS_Sectors": [new_loan_request.NAICS],
+        "New": [new_loan_request.New],
+        "Franchise": [new_loan_request.Franchise],
+        "State": [new_loan_request.State],
+        "Rural": [new_loan_request.Rural]
     }
 
-    # Ensure correct feature transformations
-    df_data = pd.DataFrame([loan_data])
-    df_data['NAICS'] = df_data['NAICS'].apply(lambda x: str(x)[:2])
     
-    # Define expected feature order
-    feature_order = ['State', 'NAICS', 'UrbanRural', 'LowDoc', 'bank_loan_float', 'SBA_loan_float', 'FranchiseCode', 'BankState', 'Bank', 'RevLineCr', 'Term', 'crisis']
-    
-    
-    categorical_features = ['State', 'NAICS', 'FranchiseCode', 'BankState', 'RevLineCr', 'Bank']
-    ordinal_features = ['LowDoc', 'UrbanRural', 'crisis']
-    numeric_features = ['bank_loan_float', 'SBA_loan_float', 'Term']
-    
-    
-    df_data[categorical_features] = df_data[categorical_features].astype('category')
-    df_data[ordinal_features] = df_data[ordinal_features].astype('int')
-    df_data[numeric_features] = df_data[numeric_features].astype('float')
-    
-    print(df_data)
-    print(df_data.dtypes)
-    
-    df_data = df_data[feature_order]
 
+
+    # Ensure correct feature transformations
+    df_data = pd.DataFrame(loan_data)
+    categorical_columns = ['State', 'NAICS_Sectors', 'Franchise', 'Rural', 'LowDoc', 'RevLineCr', 'NoEmp', 'New']
+    numeric_columns = ['GrAppv', 'Term']
+
+    # Convert the loan data to a DataFrame
+    df_data[categorical_columns] = df_data[categorical_columns].astype('category')
+    df_data[numeric_columns] = df_data[numeric_columns].astype('float')
     
+    # Vérifiez les colonnes attendues par le modèle
+    print(model.feature_names_in_)  # Si disponible, affiche les colonnes attendues par le modèle
+    print(df_data.columns)          # Comparez avec les colonnes de df_data
+
     # Make a prediction using the trained LGBM model
     prediction = model.predict(df_data)
-    
-    return {"eligibility": "Eligible for loan" if prediction[0] == 1 else "Not eligible for loan"}
 
-    #except Exception as e:
-    #    raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+    # Update the 'accepted' column in the loan request if eligible
+    new_loan_request.accepted = True if prediction[0] == 1 else False
 
-        
+    # Commit the updated loan request to the database
+    #try:
+    #loan_request = LoanRequest(**loan_data)
+    #loan_request = LoanRequest(**loan_data.dict(exclude={"id", "user_id"}),  # Exclure id et user_id des données envoyées
+    #                            user_id=current_user.id)  # Ajouter l'ID de l'utilisateur connecté
+    #session.commit()
+    #session.refresh(new_loan_request)  # Ensure we have the latest data
+#except Exception as e:
+    #session.rollback()
+        #raise HTTPException(status_code=500, detail=f"Database error while updating eligibility: {str(e)}")
 
-# Submission of a loan request
-# POST/loans/request
-@router.post("/loans/request", response_model=LoanRequest)
-async def request_loan(user_id: int, loan_request: LoanRequest, session: Session = Depends(get_session)):
-    # Retrieve the user from the database using the provided user_id
-    user = session.get(User, user_id)
-    # If the user does not exist, raise a 404 HTTP exception
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    # Create a new loan request instance using the provided loan_request data
-    new_loan_request = LoanRequest(**loan_request.model_dump(exclude_unset=True))
-    try:
-        # Add the new loan request to the session
-        session.add(new_loan_request)
-        # Commit the transaction to save the new loan request in the database
-        session.commit()
-        # Refresh the session to get the updated loan request data  
-        session.refresh(new_loan_request)  
-    except Exception as e:
-        # If an exception occurs during the database transaction, rollback the session and raise a 500 HTTP
-        session.rollback()  
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    # Return the newly created loan request
-    return new_loan_request
+    # Prepare the eligibility message
+    eligibility_message = "Your loan request has been accepted." if new_loan_request.accepted else "Your loan request has not been accepted."
+
+    # Return a message with the eligibility status and the updated loan request
+    return {
+        "message": eligibility_message,
+        "loan_request": new_loan_request
+    }
+
 
 # History of loan requests
 # GET /loans/history
