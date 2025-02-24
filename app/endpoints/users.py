@@ -71,13 +71,22 @@ def create_user(user: User):
         return "Inscription validée"
 
 
+    
 @router.get("/admin/users")
 def get_users(current_user: User = Depends(get_current_user)):
-    print('hi')
-    print(current_user.role)
+    # Ensure current_user is valid
+    if not current_user or not hasattr(current_user, "role"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user authentication")
+
+    # Check if the user is an admin
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins only")
-    else:
-        with Session(engine) as session:
-            users = session.exec(select(User)).all()
-            return [{"Nom de l'utilisateur" : user.name} for user in users]
+
+    # Fetch all users from the database
+    with Session(engine) as session:
+        users = session.execute(select(User)).all()
+        #return [{"Nom de l'utilisateur": user.name} for user in users]
+        return {
+            "Liste des utilisateurs" : [user[0].name for user in users]
+        }
+

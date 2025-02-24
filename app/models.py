@@ -10,17 +10,34 @@ class User(SQLModel, table=True):
     activation: bool = Field(default=False)
 
 
+# class loan_requests(SQLModel, table=True):
+#     id: int = Field(default=None, primary_key=True)
+#     State: str
+#     NAICS: int
+#     UrbanRural: int
+#     LowDoc: str 
+#     bank_loan_float: float
+#     SBA_loan_float: float
+#     FranchiseCode: str
+#     Bank: str
+#     BankState: str
+#     RevLineCr: str 
+#     Term: int
+#     crisis: int
+
 class loan_requests(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
-    State: str
-    NAICS: int
-    UrbanRural: int
-    LowDoc: str 
-    bank_loan_float: float
-    SBA_loan_float: float
-    FranchiseCode: str
-    Bank: str
-    BankState: str
-    RevLineCr: str 
-    Term: int
-    crisis: int
+    GrAppv: float = Field(default=0)  
+    Term : int
+    State : str
+    NAICS_Sectors : int
+    New : str
+    Franchise : str
+    NoEmp : str
+    RevLineCr : str
+    LowDoc : str
+    Rural : str
+    prediction : str
+    
+
+

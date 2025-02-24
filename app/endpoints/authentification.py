@@ -1,10 +1,10 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, status, Header
 from app.models import User
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
-from app.database import get_session
+from app.database import get_session, engine
 from jose import jwt, JWTError
 from pydantic import BaseModel
 from datetime import timedelta, datetime
@@ -17,7 +17,10 @@ SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
 
 
 def get_password_hash(password):
@@ -101,3 +104,6 @@ async def reset_password(
 def logout(response: Response):
     response.delete_cookie(key="access_token")
     return {"message": "Successfully logged out"}
+
+
+

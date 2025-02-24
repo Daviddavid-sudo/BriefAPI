@@ -1,101 +1,117 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from app.models import User, loan_requests
+#from auth import get_current_user
+
 from app.database import get_session
 import joblib
 import numpy as np
-
+import lightgbm
+import pandas as pd
+import joblib
+import pickle
 
 router = APIRouter()
 
-### Routes for loan requests ###
-# Load the pre-trained model for loan eligibility prediction
-model = joblib.load("app/model/model_lgbm_cloud.pkl")  # Ensure the model file is present in the correct path
+#model = joblib.load("app/final_model_pipeline.pkl")
+with open("app/final_model_pipeline.pkl", "rb") as file:
+    model = pickle.load(file)
 
 
-# GET /loans/predict
-# @router.get("/loans/predict")
-# def predict_loan_eligibility(loan_id: int, session: Session = Depends(get_session)):
-#     # Retrieve the loan request from the database using the provided loan_id
-#     loan_request = session.get(loan_requests, loan_id)
-#     # If the loan request does not exist, raise a 404 HTTP exception
-#     if not loan_request:
-#         raise HTTPException(status_code=404, detail="Loan request not found")
-#     else:
-#         try:
-#             # Convert loan request data to a dictionary
-#             loan_data = loan_request.model_dump()
-#             # Convert dictionary values to a numpy array
-#             data_array = np.array([list(loan_data.values())])
-#             # Make a prediction using the loaded model
-#             prediction = model.predict(data_array)
-#             print("hi")
-#             print(prediction[0])
-#             print("hi")
-#             # Return eligibility based on the prediction
-#             if prediction[0] == 1:
-#                 return {"eligibility": "Eligible for loan"}
-#             else:
-#                 return {"eligibility": "Not eligible for loan"}
-#         except Exception as e:
-#             # If an exception occurs during prediction, raise a 500 HTTP exception
-#             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-@router.get("/loans/predict")
-def predict_loan_eligibility2(loan_id: int, session: Session = Depends(get_session)):
-    # Retrieve the loan request from the database using the provided loan_id
-    loan_request = session.get(LoanRequest, loan_id)
-    # If the loan request does not exist, raise a 404 HTTP exception
-    if not loan_request:
-        raise HTTPException(status_code=404, detail="Loan request not found")
-    
-    try:
-        # Convert loan request data to a dictionary
-        loan_data = loan_request.model_dump()
-        
-        # Define the expected feature order
-        feature_order = ["State", "NAICS", "UrbanRural", "LowDoc", "bank_loan_float", "SBA_loan_float", "FranchiseCode", "Bank", "BankState", "RevLineCr", "Term", "crisis"]
-        
-        # Ensure the data is formatted correctly
-        data_array = np.array([[
-            loan_data[feature] if feature in ["State", "LowDoc", "FranchiseCode", "Bank", "BankState", "RevLineCr"] else float(loan_data[feature])
-            for feature in feature_order
-        ]])
-        
-        # Make a prediction using the loaded model
-        prediction = model.predict(data_array)
-        
-        # Return eligibility based on the prediction
-        return {"eligibility": "Eligible for loan" if prediction[0] == 1 else "Not eligible for loan"}
-    except Exception as e:
-        # If an exception occurs during prediction, raise a 500 HTTP exception
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-    
-# Submission of a loan request
-# POST/loans/request
 @router.post("/loans/request", response_model=loan_requests)
-def request_loan(user_id: int, loan_request: loan_requests, session: Session = Depends(get_session)):
-    # Retrieve the user from the database using the provided user_id
-    user = session.get(User, user_id)
-    # If the user does not exist, raise a 404 HTTP exception
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    # Create a new loan request instance using the provided loan_request data
-    new_loan_request = loan_requests(**loan_request.model_dump())
-    # Add the new loan request to the session
-    session.add(new_loan_request)
-    # Commit the transaction to save the new loan request in the database
-    session.commit()
-    # Refresh the session to get the updated loan request data
-    session.refresh(new_loan_request)
-    # Return the newly created loan request
-    return new_loan_request
+async def request_loan_and_predict(loan_request: loan_requests):
+
+    # new_loan_request = loan_requests(**loan_request.model_dump(exclude_unset=True))
+
+
+    loan_data = {
+        "GrAppv": [loan_request.GrAppv],
+        "Term": [loan_request.Term],
+        "State": [loan_request.State],
+        "NAICS_Sectors": [loan_request.NAICS_Sectors],
+        "New": [loan_request.New],
+        "Franchise": [loan_request.Franchise],
+        "NoEmp" : [loan_request.NoEmp],
+        "RevLineCr": [loan_request.RevLineCr],
+        "LowDoc": [loan_request.LowDoc],
+        "Rural": [loan_request.Rural]        
+    }
+
+    
+    df_data = pd.DataFrame(loan_data)
+
+
+
+    df_data["GrAppv"] = df_data["GrAppv"].astype("float32")
+    df_data["Term"] = df_data["Term"].astype("float32")
+    df_data["State"] = df_data["State"].astype("category")
+    df_data["NAICS_Sectors"] = df_data["NAICS_Sectors"].astype("category")
+    df_data["New"] = df_data["New"].astype("category")
+    df_data["Franchise"] = df_data["Franchise"].astype("category")
+    df_data["NoEmp"] = df_data["NoEmp"].astype("float32")
+    df_data["RevLineCr"] = df_data["RevLineCr"].astype("category")
+    df_data["LowDoc"] = df_data["LowDoc"].astype("category")
+    df_data["Rural"] = df_data["Rural"].astype("category")
+
+
+    
+
+
+    
+
+    # categorical_columns = ['State', 'NAICS_Sectors', 'Franchise', 'Rural', 'LowDoc', 'RevLineCr', 'New']
+    # numeric_columns = ['GrAppv', 'Term']
+
+
+
+    # df_data[categorical_columns] = df_data[categorical_columns].astype('category')
+    # df_data[numeric_columns] = df_data[numeric_columns].astype('float')
+    
+    # print(model.feature_names_in_)  # Si disponible, affiche les colonnes attendues par le modèle
+    # print(df_data.columns)          # Comparez avec les colonnes de df_data
+
+    prediction = model.predict(df_data)
+    
+    
+
+    loan_request.prediction = "True" if prediction[0] == 1 else False
+
+   
+    eligibility_message = "Your loan request has been accepted." if loan_request.prediction else "Your loan request has not been accepted."
+
+    return {
+        "message": eligibility_message,
+        "loan_request": loan_request
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # History of loan requests
 # GET /loans/history
 @router.get("/loans/history")
-def get_loan_history(user_id: int, session: Session = Depends(get_session)):
+async def get_loan_history(user_id: int, session: Session = Depends(get_session)):
     # Execute a SQL query to select all loan requests for the given user_id
     loans = session.exec(select(loan_requests).where(loan_requests.user_id == user_id)).all()
     # If no loan requests are found, raise a 404 HTTP exception
