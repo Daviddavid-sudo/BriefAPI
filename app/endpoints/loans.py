@@ -18,7 +18,7 @@ with open("app/final_model_pipeline.pkl", "rb") as file:
     model = pickle.load(file)
 
 
-@router.post("/loans/request", response_model=loan_requests)
+@router.post("/loans/request")
 async def request_loan_and_predict(loan_request: loan_requests):
 
     # new_loan_request = loan_requests(**loan_request.model_dump(exclude_unset=True))
@@ -44,17 +44,17 @@ async def request_loan_and_predict(loan_request: loan_requests):
 
     df_data["GrAppv"] = df_data["GrAppv"].astype("float32")
     df_data["Term"] = df_data["Term"].astype("float32")
-    df_data["State"] = df_data["State"].astype("category")
-    df_data["NAICS_Sectors"] = df_data["NAICS_Sectors"].astype("category")
-    df_data["New"] = df_data["New"].astype("category")
-    df_data["Franchise"] = df_data["Franchise"].astype("category")
+    df_data["State"] = df_data["State"].astype("str")
+    df_data["NAICS_Sectors"] = df_data["NAICS_Sectors"].astype("str")
+    df_data["New"] = df_data["New"].astype("str")
+    df_data["Franchise"] = df_data["Franchise"].astype("str")
     df_data["NoEmp"] = df_data["NoEmp"].astype("float32")
-    df_data["RevLineCr"] = df_data["RevLineCr"].astype("category")
-    df_data["LowDoc"] = df_data["LowDoc"].astype("category")
-    df_data["Rural"] = df_data["Rural"].astype("category")
+    df_data["RevLineCr"] = df_data["RevLineCr"].astype("str")
+    df_data["LowDoc"] = df_data["LowDoc"].astype("str")
+    df_data["Rural"] = df_data["Rural"].astype("str")
 
 
-    
+
 
 
     
@@ -80,8 +80,7 @@ async def request_loan_and_predict(loan_request: loan_requests):
     eligibility_message = "Your loan request has been accepted." if loan_request.prediction else "Your loan request has not been accepted."
 
     return {
-        "message": eligibility_message,
-        "loan_request": loan_request
+        "message": eligibility_message
     }
 
 
