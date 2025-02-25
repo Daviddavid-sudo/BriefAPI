@@ -28,7 +28,7 @@ class User(SQLModel, table=True):
 class loan_requests(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     GrAppv: float = Field(default=0)  
-    Term : int
+    Term : float
     State : str
     NAICS_Sectors : int
     New : str
