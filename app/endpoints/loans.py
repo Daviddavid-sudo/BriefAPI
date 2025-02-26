@@ -47,20 +47,13 @@ async def request_loan_and_predict(loan_request: loan_requests):
     df_data["Rural"] = df_data["Rural"].astype("str")
 
     prediction = model.predict(df_data)
-    loan_request.prediction = "True" if prediction[0] == 1 else False
-    eligibility_message = "Your loan request has been accepted." if loan_request.prediction else "Your loan request has not been accepted."
+    pred = True if prediction[0] == 1 else False
 
-
-    return {
-            "message": eligibility_message
-        }
+    return pred
     
 
-# History of loan requests
-# GET /loans/history
 @router.get("/loans/history")
 async def get_loan_history(id: int, session: Session = Depends(get_session)):
-    # Execute a SQL query to select all loan requests for the given user_id
     loans = session.exec(select(loan_requests).where(loan_requests.id == id)).all()
     # If no loan requests are found, raise a 404 HTTP exception
     if not loans:
