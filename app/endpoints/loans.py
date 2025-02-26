@@ -59,9 +59,9 @@ async def request_loan_and_predict(loan_request: loan_requests):
 # History of loan requests
 # GET /loans/history
 @router.get("/loans/history")
-async def get_loan_history(user_id: int, session: Session = Depends(get_session)):
+async def get_loan_history(id: int, session: Session = Depends(get_session)):
     # Execute a SQL query to select all loan requests for the given user_id
-    loans = session.exec(select(loan_requests).where(loan_requests.id == user_id)).all()
+    loans = session.exec(select(loan_requests).where(loan_requests.id == id)).all()
     # If no loan requests are found, raise a 404 HTTP exception
     if not loans:
         raise HTTPException(status_code=404, detail="No loan requests found")
