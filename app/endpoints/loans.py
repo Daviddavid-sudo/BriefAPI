@@ -48,13 +48,8 @@ async def request_loan_and_predict(loan_request: loan_requests):
 
     prediction = model.predict(df_data)
     loan_request.prediction = "True" if prediction[0] == 1 else False
-    eligibility_message = "Your loan request has been accepted." if loan_request.prediction else "Your loan request has not been accepted."
 
-
-    return {
-            "message": eligibility_message
-        }
-    
+    return loan_request.prediction
 
 # History of loan requests
 # GET /loans/history
