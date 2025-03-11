@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from app.models import User, loan_requests
-from app.database import engine
+# from app.database import engine
 
 from app.database import get_session
 import joblib
@@ -11,11 +11,14 @@ import pandas as pd
 import joblib
 import pickle
 
+
+
 router = APIRouter()
 
 #model = joblib.load("app/final_model_pipeline.pkl")
 with open("app/final_model_pipeline.pkl", "rb") as file:
     model = pickle.load(file)
+
 
 
 @router.post("/loans/request")

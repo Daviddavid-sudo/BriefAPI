@@ -61,7 +61,7 @@ def create_user(user: User):
         if existing_user:
             return {"Un utilisateur avec cet email existe déjà"}
         
-        hashed_password = jwt.encode(user.password)
+        hashed_password = get_password_hash(user.password)
 
         new_user = User(email=user.email, password=hashed_password, name=user.name, role=user.role, activation=False)
         session.add(new_user)
